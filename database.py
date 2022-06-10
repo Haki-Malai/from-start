@@ -16,35 +16,40 @@ class User(db.Model):
     username = db.Column(db.String(25), unique=True)
     password = db.Column(db.String(512))
     email = db.Column(db.String(50), unique=True)
-    confirmedEmail = db.Column(db.Boolean, unique=False, default=False)
+    confirmedEmail = db.Column(db.Boolean, default=False)
     created = db.Column(db.Date)
-    level = db.Column(db.Integer)
+    level = db.Column(db.Integer, default=1)
     lastActive = db.Column(db.DateTime)
     invitationCode = db.Column(db.String(10), unique=True)
     invitationCommision = db.Column(db.Float(10), default=0)
     invitedFrom = db.Column(db.String(10), default='NOBODY')
     taskProfit = db.Column(db.Float(10), default=0)
-    picUrl = db.Column(db.String(10))
+    picUrl = db.Column(db.String(10), default='none')
     balance = db.Column(db.Float, default=0)
 
     def __init__(self, username, email, password, invitationCode, invitedFrom='NOBODY'):
         self.username = username
         self.email = email
         self.password = generate_password_hash(password)
-        self.confirmedEmail = False
         self.created = created=datetime.now()
-        self.level = 1
         self.lastActive = created=datetime.now()
         self.invitationCode = invitationCode
         self.invitedFrom = invitedFrom
-        self.picUrl = 'none'
-        self.balance = 0
 
     def __repr__(self):
         return '<User %r>' % self.username
     
     def validate_password(self, password):
         return check_password_hash(self.password, password)
+
+    def get_paid_for_job(self, amount):
+        self.balance += amount
+        self.taskProfit += amount
+        # Give 2% to the invitor
+        invitor_amount = amount*0.02
+        user = User.query(invitationCode=self.invitedFrom).first()
+        user.get_paid_for_job(invitor_amount)
+        db.session.commit()
 
     def get_json(self):
         return json.dumps({
@@ -111,6 +116,12 @@ def change_user_password(username, password):
 def get_user_data(username):
     return User.query.filter_by(username=username).first().get_json()
 
+def get_user_data_from_id(id):
+    return User.query.filter_by(id=id).first().get_json()
+
+def get_user_id(username):
+    return User.query.filter_by(username=username).first().id
+
 def credentials_valid(username, password):
     user = User.query.filter_by(username=username).first()
     if user:
@@ -154,8 +165,8 @@ def get_user_tasks(username):
     # Query tasks where the created datetime is bigger than yesterday 
     yesterday = datetime.now() - timedelta(days = 1)
     last_week = datetime.now() - timedelta(days = 7)
-    last_3_hours = datetime.now() - timedelta(hours = 3) # TODO custom timeout threshold
-    random_past_time = datetime.now() - timedelta(hours = random.randint(0, 9)) 
+    last_3_hours = datetime.now() - timedelta(seconds=15)#hours = 3) # TODO custom timeout threshold
+    random_past_time = datetime.now() - timedelta(seconds=15)#hours = random.randint(0, 9)) 
     final_tasks = []
 
     # Delete very old tasks
@@ -170,7 +181,7 @@ def get_user_tasks(username):
     # Update to finished and pay user
     for task in Task.query.filter(Task.user_id == user.id, Task.status == 1, Task.submited < random_past_time).all():
         update_task(task.id, 2)
-        user_to_pay = User.query.filter(User.id == task.id).first()
+        user_to_pay = User.query.filter(User.id == task.user_id).first()
         if user_to_pay.level == 1:
             amount = 0.5
         elif user_to_pay.level == 2:
@@ -186,7 +197,6 @@ def get_user_tasks(username):
         user_to_pay.taskProfit = user_to_pay.taskProfit + amount
         user_to_pay.balance = user_to_pay.balance + amount
         db.session.commit()
-
 
     # Return tasks from last 24h
     for task in Task.query.filter(Task.user_id == user.id, Task.created > yesterday).all():

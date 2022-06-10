@@ -54,7 +54,8 @@ def welcome():
             user_data = ''
             for index, token in enumerate(tokens):
                 if token == access_token:
-                    user_data = users[index]
+                    user_data = database.get_user_data_from_id(users[index])
+                    print(user_data)
             if user_data != None and user_data != '': break
         return json.dumps({'user_data': user_data})
     return json.dumps({'state': 'logout'})
@@ -74,7 +75,7 @@ def login():
             user_data = database.get_user_data(username)
             if user_data != None and access_token != None: 
                 tokens.append(access_token)
-                users.append(user_data)
+                users.append(database.get_user_id(username))
                 break
         response = json.dumps({'access_token': access_token, 'user_data': user_data})
         return response
@@ -103,7 +104,7 @@ def signup():
             user_data = database.get_user_data(username)
             if user_data != None and access_token != None: 
                 tokens.append(access_token)
-                users.append(user_data)
+                users.append(database.get_user_id(username))
                 break
         response = {'access_token': access_token, 'user_data': user_data}
         return response
