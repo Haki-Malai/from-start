@@ -203,6 +203,14 @@ def get_user_tasks(username):
         final_tasks.append(json.dumps(task.get_json()))
     return final_tasks
 
+def upgrade_user(username, level):
+    user = User.query.filter_by(username=username).first()
+    print(level)
+    if level <= 6 and level > 1 and level > user.level:
+        user.level = level
+        db.session.commit()
+        return 1
+    return 0
 
 def init_db():
     db.create_all()

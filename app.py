@@ -55,7 +55,6 @@ def welcome():
             for index, token in enumerate(tokens):
                 if token == access_token:
                     user_data = database.get_user_data_from_id(users[index])
-                    print(user_data)
             if user_data != None and user_data != '': break
         return json.dumps({'user_data': user_data})
     return json.dumps({'state': 'logout'})
@@ -190,8 +189,14 @@ def feed():
         return json.dumps({'feed': feed_stack})
     return json.dumps({'feed': feed_stack})
 
-
-
+#========================LEVEL-UPGRADE========================================
+@app.route('/upgrade', methods=['POST'])
+def upgrade():
+    username = request.json['username']
+    level = request.json['level']
+    if database.upgrade_user(username, level) == 1:
+        return SUCCESS
+    return ERROR
 
 
 #=============================ERROR============================================
